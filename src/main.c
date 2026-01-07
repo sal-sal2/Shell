@@ -24,6 +24,7 @@ int find_in_path(const char *cmd, char *result, size_t size);
 int parse_command(char *command, char *argv[], int max_args);
 void run_external(char *argv[]);
 int handle_pwd(char *command);
+int handle_cd(char *command);
 
 
 int main(int argc, char *argv[]) {
@@ -76,7 +77,6 @@ int main(int argc, char *argv[]) {
 }
 
 
-
 int handle_echo(char *command){
   /*
   (char *) -> int
@@ -114,6 +114,48 @@ int handle_pwd(char *command){
   }
 
   return 0;
+}
+int handle_cd(char *command){
+  /*
+  (char *) -> int
+  Function checks whether the given command is a cd command. If so, attempts to
+  change the current working directory to the specified path and returns 1.
+  Supports changing to the home directory using "~".
+  If the command is not a cd command, returns 0.
+  */
+  if (strncmp(command, "cd", 2) != 0 || (command[2] != ' ' && command[2] != '\0')){
+    return 0;
+  }
+
+  //no argument
+  if (command[2] == '\0'){
+    return 1;
+  }
+
+  char *path = command + 3;
+
+  if (strcmp(path, "~") == 0) {
+    path = getenv("HOME");
+    if (!path) {
+        printf("cd: HOME not set\n");
+        return 1;
+    }
+  }
+  
+  struct stat st;
+
+  //check if directory exists
+  if (stat(path, &st) != 0 || !S_ISDIR(st.st_mode)){
+    printf("cd: %s: No such file or directory\n", path);
+    return 1;
+  }
+
+  //check permissiions and change directory
+  if (chdir(path) != 0){
+    printf("cd: %s: No such file or directory\n", path);
+  }
+
+  return 1;
 }
 int find_in_path(const char *cmd, char *result, size_t size){
   /*
