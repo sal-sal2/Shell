@@ -13,6 +13,7 @@ const char *builtins[] = {
   "echo",
   "type",
   "pwd",
+  "cd",
   NULL
 };
 
@@ -22,6 +23,7 @@ int handle_type(char *command);
 int find_in_path(const char *cmd, char *result, size_t size);
 int parse_command(char *command, char *argv[], int max_args);
 void run_external(char *argv[]);
+int handle_pwd(char *command);
 
 
 int main(int argc, char *argv[]) {
@@ -48,6 +50,11 @@ int main(int argc, char *argv[]) {
         continue;
         }
         
+        //handle pwd command
+        if (handle_pwd(command)){
+          continue;
+        }
+
         //handle type command
         if (handle_type(command)){
         continue;
@@ -88,6 +95,25 @@ int handle_echo(char *command){
   }
 
   return 1;
+}
+int handle_pwd(char *command){
+  /*
+  (char *) -> int
+  Function checks whether the given command is a pwd command. If so, prints the
+  current working directory to standard output and returns 1.
+  If the command is not a pwd command or an error occurs, returns 0.
+  */
+  if (strncmp(command, "pwd", 3) || (command[3] != ' ' && command[3] != '\0')){
+    return 0;
+  }
+
+  char buf[BUFFER_SIZE];
+  if (getcwd(buf, sizeof(buf)) != NULL){
+    printf("%s\n", buf);
+    return 1;
+  }
+
+  return 0;
 }
 int find_in_path(const char *cmd, char *result, size_t size){
   /*
