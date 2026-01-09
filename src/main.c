@@ -17,7 +17,6 @@ const char *builtins[] = {
   NULL
 };
 
-int handle_echo(char *command);
 int is_builtin(const char *cmd);
 int handle_type(char *command);
 int find_in_path(const char *cmd, char *result, size_t size);
@@ -44,11 +43,6 @@ int main(int argc, char *argv[]) {
         //handle exit command
         if (strcmp(command, "exit") == 0){
         return 0;
-        }
-
-        //handle echo command
-        if (handle_echo(command)){
-        continue;
         }
         
         //handle pwd command
@@ -82,25 +76,6 @@ int main(int argc, char *argv[]) {
 }
 
 
-int handle_echo(char *command){
-  /*
-  (char *) -> int
-  Function checks whether the given command is an echo command. If so, prints the text following echo to standard output and returns 1. 
-  If the command is not an echo command, returns 0.
-  */
-
-  if (strncmp(command, "echo", 4) != 0 || (command[4] != ' ' && command[4] != '\0')){
-    return 0;
-  }
-
-  if (command[4] == ' '){
-    printf("%s\n", command + 5);
-  } else{
-    printf("\n");
-  }
-
-  return 1;
-}
 int handle_pwd(char *command){
   /*
   (char *) -> int
@@ -253,23 +228,71 @@ int handle_type(char *command){
 
 int parse_command(char *command, char *argv[], int max_args){
   /*
-  () -> int
-  Function splits the command string into separate words using spaces as separators.
-  Each word is stored in argv[], and argv[] is terminated with NULL.
-  Returns the number of arguments found (excluding the NULL terminator).
+  (char *, char *, int) -> int
+  Function splits the command on spaces while respecting single/double-quoted strings.
+  Quotes are removed, spaces inside quotes are preserved.
+  Returns the number of arguments parsed.
   */
-  int count = 0;
-  char *token = strtok(command, " "); //get first word
 
-  while (token != NULL && count < max_args - 1){
-    //store word in argv and get next word
-    argv[count++] = token;
-    token = strtok(NULL, " ");
-  }
+  int argc = 0;
+  int in_single_quotes = 0;
+  int in_double_quotes = 0;
+  char *p = command;
+  char *arg_start = NULL;
 
-  argv[count] = NULL;
+  while (*p){
+    //skip leading spaces
+    while(*p == ' ' && !in_single_quotes && !in_double_quotes){
+      p++;
+    }
 
-  return count;
+    if (*p == '\0'){
+      break;
+    }
+
+    //mark the start of the argument
+    arg_start = p;
+    argv[argc++] = p; //store pointer to start of argument
+
+    //go through characters of current argument
+    while (*p){
+
+      if (*p == '\'' && !in_double_quotes) {
+        in_single_quotes = !in_single_quotes;
+
+        //remove quote by shifting
+        memmove(p, p + 1, strlen(p));
+        continue;
+      }
+
+      if (*p == '"' && !in_single_quotes) {
+          in_double_quotes = !in_double_quotes;
+
+          //remove quote by shifting
+          memmove(p, p + 1, strlen(p));
+          continue;
+      }
+
+      //if space outside of quotes, the argument ends
+      if (*p == ' ' && !in_single_quotes && !in_double_quotes) {
+        //Null-terminate the current argument and move past the space
+        *p = '\0';        
+        p++;            
+        break;
+      }
+
+      //move to the next character
+      p++;
+    }
+
+      //stop when exceeding maximum number of arguments
+      if (argc >= max_args - 1){
+        break;
+      }
+    }
+
+    argv[argc] = NULL;
+    return argc;
 }
 
 void run_external(char *argv[]){
