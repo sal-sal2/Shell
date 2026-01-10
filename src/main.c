@@ -281,6 +281,35 @@ int parse_command(char *command, char *argv[], int max_args){
         break;
       }
 
+      //handle backslashes
+      if (*p == '\\') {
+        if (in_double_quotes) {
+          //only \ and " are special
+          char next = *(p + 1);
+          if (next == '"' || next == '\\') {
+              //shift left to remove backslash
+              memmove(p, p + 1, strlen(p));
+              
+              //move past the escaped character
+              p++;
+              continue;
+          }
+          //leave the backslash as literal
+          p++;
+          continue;
+      } 
+      else if (!in_single_quotes) {
+          //outside quotes, backslash escapes any char
+          memmove(p, p + 1, strlen(p));
+          if (*p == '\0'){
+            break;
+          }
+
+          p++;
+          continue;
+        }
+      }
+
       //move to the next character
       p++;
     }
