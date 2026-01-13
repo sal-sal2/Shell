@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h> 
+#include <fcntl.h>
+
 
 
 #define BUFFER_SIZE 1024
@@ -332,6 +334,60 @@ void run_external(char *argv[]){
   Prints "command not found" if the program does not exist.
   */
   char full_path[BUFFER_SIZE];
+  char *out_file;
+
+  //scan command for redirection
+  for (int i = 0; argv[i] != NULL; i++){
+    //check >> or 1>>
+    if (strcmp(argv[i], ">>") == 0 || strcmp(argv[i], "1>>") == 0) {
+      if (argv[i + 1] == NULL) {
+        fprintf(stderr, "syntax error: expected file after >>\n");
+        return;
+      }
+      out_file = argv[i + 1];
+      append_out = 1;
+      argv[i] = NULL;
+      break;
+    }
+
+    //check > or 1>
+    if (strcmp(argv[i], ">") == 0 || strcmp(argv[i], "1>") == 0){
+      //nothing after
+      if(argv[i + 1] == NULL){
+        fprintf(stderr, "syntax error: expected file after >\n");
+        return;
+      }
+
+      //something after
+      out_file = argv[i + 1];
+
+      //remove
+      argv[i] = NULL;
+      break;
+    }
+
+    //check for 2>>
+    if (strcmp(argv[i], "2>>") == 0) {
+      if (argv[i + 1] == NULL) {
+        fprintf(stderr, "syntax error: expected file after 2>>\n");
+        return;
+      }
+      err_file = argv[i + 1];
+      append_err = 1;
+      argv[i] = NULL;
+      break;
+    }
+    //check for 2>
+    if (strcmp(argv[i], "2>") == 0) {
+      if (argv[i + 1] == NULL) {
+        fprintf(stderr, "syntax error: expected file after 2>\n");
+        return;
+      }
+      err_file = argv[i + 1];
+      argv[i] = NULL;
+      break;
+    }
+  }
 
   if (!find_in_path(argv[0], full_path, sizeof(full_path))){
     printf("%s: command not found\n", argv[0]);
@@ -342,6 +398,44 @@ void run_external(char *argv[]){
   pid_t pid = fork();
 
   if (pid == 0){
+    if (out_file) {
+    int flags = O_WRONLY | O_CREAT;
+
+    if (append_out) {
+      flags |= O_APPEND;
+    } else {
+      flags |= O_TRUNC;
+    }
+
+    int fd = open(out_file, flags, 0644);
+    if (fd < 0) {
+      perror("open");
+      exit(1);
+    }
+
+    dup2(fd, STDOUT_FILENO);
+    close(fd);
+    }
+
+    if (err_file) {
+    int flags = O_WRONLY | O_CREAT;
+
+    if (append_err) {
+      flags |= O_APPEND;
+    } else {
+      flags |= O_TRUNC;
+    }
+
+    int fd = open(err_file, flags, 0644);
+    if (fd < 0) {
+      perror("open");
+      exit(1);
+    }
+
+    dup2(fd, STDERR_FILENO);
+    close(fd);
+  }
+
     //replace child process with program
     execv(full_path, argv);
     perror("execv");
