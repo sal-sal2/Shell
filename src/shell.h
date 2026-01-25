@@ -26,5 +26,5 @@ char *builtin_generator(const char *text, int state);
 char **builtin_completion(const char *text, int start, int end);
 char *executable_generator(const char *text, int state);
 void run_pipeline(char *left[], char *right[]);
-
+int handle_history(char *command);
 #endif

@@ -59,14 +59,32 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
+    //handle history command
+    if (handle_history(command)) {
+        continue;
+    }
+
     char *argv_exec[64];
     char command_copy[BUFFER_SIZE];
 
     strcpy(command_copy, command);
     parse_command(command_copy, argv_exec, 64);//split the command into argv_exec
 
-    //only run if there is a program name
-    if (argv_exec[0] != NULL) {
+    //look for pipe |
+    int pipe_index = -1;
+    for (int i = 0; argv_exec[i]; i++) {
+        if (strcmp(argv_exec[i], "|") == 0) {
+            pipe_index = i;
+            break;
+        }
+    }
+
+    if (pipe_index != -1) {
+        argv_exec[pipe_index] = NULL;
+        char **left = argv_exec;
+        char **right = &argv_exec[pipe_index + 1];
+        run_pipeline(left, right);
+    } else if (argv_exec[0]) {
         run_external(argv_exec);
     }
 
@@ -179,4 +197,95 @@ char *executable_generator(const char *text, int state) {
         closedir(dir);
         dir = NULL;
     }
+}
+void run_pipeline(char *left[], char *right[]) {
+    int fd[2];
+    if (pipe(fd) == -1) {
+        perror("pipe");
+        return;
+    }
+
+    pid_t pid1 = fork();
+    if (pid1 == 0) {
+        // First command: stdout → pipe write
+        dup2(fd[1], STDOUT_FILENO);
+        close(fd[0]);
+        close(fd[1]);
+
+        char path[BUFFER_SIZE];
+        if (!find_in_path(left[0], path, sizeof(path))) {
+            fprintf(stderr, "%s: command not found\n", left[0]);
+            exit(1);
+        }
+
+        execv(path, left);
+        perror("execv");
+        exit(1);
+    }
+
+    pid_t pid2 = fork();
+    if (pid2 == 0) {
+        // Second command: stdin ← pipe read
+        dup2(fd[0], STDIN_FILENO);
+        close(fd[1]);
+        close(fd[0]);
+
+        char path[BUFFER_SIZE];
+        if (!find_in_path(right[0], path, sizeof(path))) {
+            fprintf(stderr, "%s: command not found\n", right[0]);
+            exit(1);
+        }
+
+        execv(path, right);
+        perror("execv");
+        exit(1);
+    }
+
+    // Parent
+    close(fd[0]);
+    close(fd[1]);
+
+    // IMPORTANT: wait for BOTH
+    waitpid(pid1, NULL, 0);
+    waitpid(pid2, NULL, 0);
+}
+int handle_history(char *command) {
+    // Must start with "history"
+    if (strncmp(command, "history", 7) != 0 ||
+        (command[7] != '\0' && command[7] != ' ')) {
+        return 0;
+    }
+
+    int limit = -1;
+
+    // Parse optional number
+    if (command[7] == ' ') {
+        limit = atoi(command + 8);
+        if (limit < 0) {
+            limit = 0;
+        }
+    }
+
+    HIST_ENTRY **list = history_list();
+    if (!list) {
+        return 1;
+    }
+
+    // Count total entries
+    int total = 0;
+    while (list[total]) {
+        total++;
+    }
+
+    // Determine starting index
+    int start = 0;
+    if (limit >= 0 && limit < total) {
+        start = total - limit;
+    }
+
+    for (int i = start; i < total; i++) {
+        printf("%5d  %s\n", i + 1, list[i]->line);
+    }
+
+    return 1;
 }
