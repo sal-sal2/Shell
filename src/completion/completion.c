@@ -9,28 +9,39 @@
 #include <dirent.h>
 #include <readline/readline.h>
 
-static char *command_generator(const char *text, int state);
+#define MAX_MATCHES 1024
 
-static char *matches[1024];
+static char *command_generator(const char *text, int state);
+static void free_matches(void);
+
+static char *matches[MAX_MATCHES];
 static int match_count = 0;
 
-char **builtin_completion(const char *text, int start, int end)
-{
+char **builtin_completion(const char *text, int start, int end) {
     (void)end;
 
-    if (start != 0)
+    if (start != 0){
         return NULL;
-
+    }
     return rl_completion_matches(text, command_generator);
 }
 
-static void build_match_list(const char *text)
-{
+static void free_matches(void) {
+    for (int i = 0; i < match_count; i++)
+    {
+        free(matches[i]);
+        matches[i] = NULL;
+    }
     match_count = 0;
+}
+
+static void build_match_list(const char *text) {
+    // Free previous matches
+    free_matches();
+    
     int text_len = strlen(text);
 
     // Builtin
-
     const char **builtins = builtin_get_names();
     for (int i = 0; builtins && builtins[i]; i++)
     {
@@ -41,7 +52,6 @@ static void build_match_list(const char *text)
     }
 
     // Path executable
-
     char *path_env = getenv("PATH");
     if (!path_env)
         return;
@@ -52,8 +62,7 @@ static void build_match_list(const char *text)
 
     char *dir_path = strtok(path_copy, ":");
 
-    while (dir_path && match_count < 1023)
-    {
+    while (dir_path && match_count < MAX_MATCHES - 1) {
         DIR *dir = opendir(dir_path);
         if (dir)
         {
@@ -73,7 +82,7 @@ static void build_match_list(const char *text)
                     if (access(full_path, X_OK) == 0)
                     {
                         matches[match_count++] = strdup(entry->d_name);
-                        if (match_count >= 1023)
+                        if (match_count >= MAX_MATCHES - 1)
                             break;
                     }
                 }
@@ -90,8 +99,7 @@ static void build_match_list(const char *text)
     matches[match_count] = NULL;
 }
 
-static char *command_generator(const char *text, int state)
-{
+static char *command_generator(const char *text, int state) {
     static int index;
 
     if (state == 0)
@@ -101,7 +109,7 @@ static char *command_generator(const char *text, int state)
     }
 
     if (index < match_count)
-        return matches[index++];
+        return strdup(matches[index++]);
 
     return NULL;
 }
