@@ -1,6 +1,6 @@
-# Shell
+# MiniShell
 
-Shell is a fully functional Unix shell implementation that provides an interactive command-line environment with support for both built-in commands and external program execution. This project handles all the fundamentals of a shell such as process management, I/O redirection, pipelines, and command-line interface design.
+MiniShell is a fully functional Unix shell implementation that provides an interactive command-line environment with support for both built-in commands and external program execution. This project handles all the fundamentals of a shell such as process management, I/O redirection, pipelines, and a command-line interface design.
 
 
 ##  Features
@@ -80,7 +80,7 @@ myshell/
 ```
 
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -93,7 +93,7 @@ sudo apt-get install build-essential libreadline-dev
 
 ```bash
 # Clone the repository
-git clone https://github.com/sal-sal2/Shell.git
+git clone https://github.com/sal-sal2/MiniShell.git
 
 # Build the shell
 make
@@ -130,7 +130,7 @@ $ history 5
 $ exit
 ```
 
-## 🛠️ Development
+##  Development
 
 ### Build Commands
 
